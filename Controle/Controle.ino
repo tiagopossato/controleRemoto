@@ -1,4 +1,9 @@
+/**
+ * https://github.com/tiagopossato/CC1101Radio
+ * 
+ */
 #include "SPI.h"
+#include "CC1101Radio.h"
 #define CONTROLE 1
 #define BARCO 2
 
@@ -16,7 +21,6 @@ struct {
   byte bateria;
 } barco;
 
-#include "CC1101Radio.h"
 CC1101Radio cc1101;
 
 // ----------------------
