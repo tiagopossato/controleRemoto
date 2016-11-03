@@ -7,7 +7,7 @@
 #define CONTROLE 1
 #define BARCO 2
 
-//estrutura com os dados recebidos
+//estrutura com os dados a serem enviados
 struct {
   uint16_t leme;
   uint16_t motor;
@@ -16,7 +16,7 @@ struct {
   byte canhao;
 } controle;
 
-//estrutura com os dados a serem enviados
+//estrutura com os dados recebidos
 struct {
   byte bateria;
 } barco;
@@ -27,7 +27,7 @@ CC1101Radio cc1101;
 // Contadores e Timers
 // ----------------------
 uint32_t msUltimoEnvio = 0;
-#define msEntreEnvios 2000
+#define msEntreEnvios 1500
 
 // ----------------------
 // Funções de interrrupção
@@ -56,10 +56,10 @@ void setup()
   cc1101.init();
 
   //define o endereco local do radio
-  cc1101.deviceData.deviceAddress = BARCO;
+  cc1101.deviceData.deviceAddress = CONTROLE;
 
   //define o endereço remoto
-  cc1101.deviceData.remoteDeviceAddress = CONTROLE;
+  cc1101.deviceData.remoteDeviceAddress = BARCO;
 
   //Configura o rádio para filtrar os dados recebidos e aceitar somente 
   //pacotes enviados para este endereço local
@@ -98,10 +98,21 @@ void loop() {
     mostraDados();
   }
   delay(15);
+
+  //LE DADOS ALEATORIOS
+  controle.leme = analogRead(A0);
+  controle.motor = analogRead(A1);
+  controle.servo = analogRead(A2);
+  controle.buzina = !controle.buzina;
+  controle.canhao = !controle.buzina;
 }
 
 void mostraDados() {
 
+  Serial.print("barco.bateria: ");
+  Serial.println(barco.bateria);
+
+  Serial.println("------------------------------------");
   Serial.print("controle.leme: ");
   Serial.println(controle.leme);
 
@@ -116,6 +127,7 @@ void mostraDados() {
 
   Serial.print("controle.canhao: ");
   Serial.println(controle.canhao);
+  Serial.println("------------------------------------");
 }
 // ----------------------
 // Send & Receive
@@ -173,11 +185,7 @@ bool pacoteRecebido() {
       //Serial.println("\r\nNovos dados recebidos:");
 
       //pega os dados do pacote recebido e altera os valores da estrutura
-      controle.leme = word(pkt.data[3], pkt.data[2]);
-      controle.motor = word(pkt.data[5], pkt.data[4]);
-      controle.servo = word(pkt.data[7], pkt.data[6]);
-      controle.buzina = pkt.data[8];
-      controle.canhao = pkt.data[9];
+      barco.bateria = pkt.data[2];
     } // crc & len>0
   } // cc1101.readData
 

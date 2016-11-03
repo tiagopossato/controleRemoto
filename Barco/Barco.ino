@@ -27,7 +27,7 @@ CC1101Radio cc1101;
 // Contadores e Timers
 // ----------------------
 uint32_t msUltimoEnvio = 0;
-#define msEntreEnvios 2000
+#define msEntreEnvios 1200
 
 // ----------------------
 // Funções de interrrupção
@@ -98,10 +98,17 @@ void loop() {
     mostraDados();
   }
   delay(15);
+  
+  //DADOS DE TESTE
+  barco.bateria = !barco.bateria;
 }
 
 void mostraDados() {
 
+  Serial.print("barco.bateria: ");
+  Serial.println(barco.bateria);
+
+  Serial.println("------------------------------------");
   Serial.print("controle.leme: ");
   Serial.println(controle.leme);
 
@@ -116,6 +123,7 @@ void mostraDados() {
 
   Serial.print("controle.canhao: ");
   Serial.println(controle.canhao);
+  Serial.println("------------------------------------");
 }
 // ----------------------
 // Send & Receive
@@ -123,7 +131,7 @@ void mostraDados() {
 
 void enviaDados() {
   //tamanho do pacote que sera enviado
-  uint8_t dataLength = 10;
+  uint8_t dataLength = 3;
 
   //cria pacote
   CC1101Radio::CCPACKET pkt;
@@ -134,14 +142,7 @@ void enviaDados() {
   //monta o pacote
   pkt.data[0] = cc1101.deviceData.remoteDeviceAddress;
   pkt.data[1] = cc1101.deviceData.deviceAddress;
-  pkt.data[2] = lowByte(controle.leme);
-  pkt.data[3] = highByte(controle.leme);
-  pkt.data[4] = lowByte(controle.motor);
-  pkt.data[5] = highByte(controle.motor);
-  pkt.data[6] = lowByte(controle.servo);
-  pkt.data[7] = highByte(controle.servo);
-  pkt.data[8] = controle.buzina;
-  pkt.data[9] = controle.canhao;
+  pkt.data[2] = barco.bateria;
 
   // transmite os dados
   cc1101.sendData(pkt);
