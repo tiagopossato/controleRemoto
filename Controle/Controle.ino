@@ -1,17 +1,19 @@
 /**
- * https://github.com/tiagopossato/CC1101Radio
- * 
- */
+   https://github.com/tiagopossato/CC1101Radio
+
+*/
 #include "SPI.h"
 #include "CC1101Radio.h"
 #define CONTROLE 1
 #define BARCO 2
 
+#define AMOSTRAS 25
+
 //estrutura com os dados a serem enviados
 struct {
   uint16_t leme;
   uint16_t motor;
-  uint16_t servo;
+  byte servo;
   byte buzina;
   byte canhao;
 } controle;
@@ -27,7 +29,13 @@ CC1101Radio cc1101;
 // Contadores e Timers
 // ----------------------
 uint32_t msUltimoEnvio = 0;
-#define msEntreEnvios 1500
+#define msEntreEnvios 200
+
+/**Função para converter os valores de tensão em umidade*/
+float converte(float x, float in_min, float in_max, float out_min,
+               float out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
 
 // ----------------------
 // Funções de interrrupção
@@ -50,8 +58,18 @@ void detachIntr() {
 
 void setup()
 {
+  controle.leme = 90;
+  controle.motor = 0;
+  controle.servo = 90;
+  controle.buzina = false;
+  controle.canhao = false;
+
   Serial.begin(57600);
 
+  pinMode(3, INPUT);
+  pinMode(4, INPUT);
+  pinMode(5, INPUT);
+  pinMode(7, OUTPUT);
   //inicializa o radio com os valores padrao
   cc1101.init();
 
@@ -61,7 +79,7 @@ void setup()
   //define o endereço remoto
   cc1101.deviceData.remoteDeviceAddress = BARCO;
 
-  //Configura o rádio para filtrar os dados recebidos e aceitar somente 
+  //Configura o rádio para filtrar os dados recebidos e aceitar somente
   //pacotes enviados para este endereço local
   cc1101.deviceData.addressCheck = true;
 
@@ -72,7 +90,7 @@ void setup()
   cc1101.deviceData.txPower = PA_MaxDistance;
   //canal
   cc1101.deviceData.channel = 5 ;
-  //configurações de sincronização 
+  //configurações de sincronização
   cc1101.deviceData.syncWord[0] = 19;
   cc1101.deviceData.syncWord[1] = 9;
 
@@ -86,7 +104,7 @@ void setup()
 }
 
 void loop() {
-
+  char i = 0;
   // Verifica se o radio recebeu um pacote
   if (!pacoteRecebido()) {
     // Se não recebeu um pacote, verifica se está na hora de enviar os dados
@@ -96,15 +114,37 @@ void loop() {
     }
   } else {
     mostraDados();
+    digitalWrite(7, barco.bateria);
   }
   delay(15);
 
-  //LE DADOS ALEATORIOS
-  controle.leme = analogRead(A0);
-  controle.motor = analogRead(A1);
-  controle.servo = analogRead(A2);
-  controle.buzina = !controle.buzina;
-  controle.canhao = !controle.buzina;
+  //LE DADOS
+
+  for ( i = 0 ; i < AMOSTRAS; i++) {
+    controle.leme += analogRead(A0);
+    delayMicroseconds(10);
+  }
+  controle.leme = controle.leme / AMOSTRAS;
+
+  for ( i = 0 ; i < AMOSTRAS; i++) {
+    controle.motor += analogRead(A1);
+    delayMicroseconds(10);
+  }
+  controle.motor = controle.motor / AMOSTRAS;
+
+  controle.buzina = digitalRead(6);
+  controle.canhao = digitalRead(5);
+
+  if (digitalRead(3) == 1 && controle.servo < 180) {
+    controle.servo += 1; // goes from 0 degrees to 180 degrees
+    delay(30);// waits 15ms for the servo to reach the position
+
+  }
+  if (digitalRead(4) == 1 && controle.servo > 0) {
+    controle.servo -= 1; // goes from 180 degrees to 0 degrees
+    delay(30); // waits 15ms for the servo to reach the position
+  }
+
 }
 
 void mostraDados() {
@@ -127,7 +167,7 @@ void mostraDados() {
 
   Serial.print("controle.canhao: ");
   Serial.println(controle.canhao);
-  Serial.println("------------------------------------");
+  Serial.println("------------------------------------\nCONTROLE\n");
 }
 // ----------------------
 // Send & Receive
@@ -135,7 +175,7 @@ void mostraDados() {
 
 void enviaDados() {
   //tamanho do pacote que sera enviado
-  uint8_t dataLength = 10;
+  uint8_t dataLength = 9;
 
   //cria pacote
   CC1101Radio::CCPACKET pkt;
@@ -150,10 +190,9 @@ void enviaDados() {
   pkt.data[3] = highByte(controle.leme);
   pkt.data[4] = lowByte(controle.motor);
   pkt.data[5] = highByte(controle.motor);
-  pkt.data[6] = lowByte(controle.servo);
-  pkt.data[7] = highByte(controle.servo);
-  pkt.data[8] = controle.buzina;
-  pkt.data[9] = controle.canhao;
+  pkt.data[6] = controle.servo;
+  pkt.data[7] = controle.buzina;
+  pkt.data[8] = controle.canhao;
 
   // transmite os dados
   cc1101.sendData(pkt);

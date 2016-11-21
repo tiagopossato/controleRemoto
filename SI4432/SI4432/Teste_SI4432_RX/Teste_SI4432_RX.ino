@@ -20,7 +20,7 @@ void setup()
 
 void loop() {
   // put your main code here, to run repeatedly:
-  byte dummy[70] = { 0x01, 0x3, 0x11, 0x13 };
+  byte dummy[4] = { 0x55, 0x44, 0x33, 0x11 };
 
   bool pkg = radio.isPacketReceived();
 
@@ -41,12 +41,9 @@ void loop() {
     Serial.println(" ");
 
     Serial.print("Sending response- ");
-    while (!radio.sendPacket(50, dummy));
+    while (!radio.sendPacket(4, dummy));
     Serial.println(" SENT!");
-
-    radio.startListening(); // restart the listening.
-  } else {
-    //Serial.println("No packet this cycle");
+      radio.startListening(); // restart the listening.
   }
   //delay(200);
 }

@@ -1,21 +1,42 @@
 /**
- * https://github.com/tiagopossato/CC1101Radio
- * 
- */
+   https://github.com/tiagopossato/CC1101Radio
+
+*/
 #include "SPI.h"
 #include "CC1101Radio.h"
+#include <CheapStepper.h>
+#include <TimerOne.h>
+
 #define CONTROLE 1
 #define BARCO 2
+
+#define MOTOR_PWM 3
+#define CANHAO 4
+#define SERVO 5
+#define MOTOR_FRENTE 6
+#define MOTOR_TRAS 7
+#define BUZINA 8
+
+#define BATERIA 14
+
+#define MP1 15
+#define MP2 16
+#define MP3 17
+#define MP4 18
+#define SENSOR_LEME 19
+
+CheapStepper stepper( MP1, MP2, MP3, MP4);
 
 //estrutura com os dados recebidos
 struct {
   uint16_t leme;
   uint16_t motor;
-  uint16_t servo;
+  byte servo;
   byte buzina;
   byte canhao;
 } controle;
 
+unsigned char lemePos = 0;
 //estrutura com os dados a serem enviados
 struct {
   byte bateria;
@@ -27,7 +48,7 @@ CC1101Radio cc1101;
 // Contadores e Timers
 // ----------------------
 uint32_t msUltimoEnvio = 0;
-#define msEntreEnvios 1200
+#define msEntreEnvios 2000
 
 // ----------------------
 // Funções de interrrupção
@@ -50,7 +71,16 @@ void detachIntr() {
 
 void setup()
 {
-  Serial.begin(57600);
+  Serial.begin(9600);
+
+  pinMode(BATERIA, INPUT);
+
+  pinMode(MOTOR_PWM, OUTPUT);
+  pinMode(CANHAO, OUTPUT);
+  pinMode(SERVO, OUTPUT);
+  pinMode(MOTOR_FRENTE, OUTPUT);
+  pinMode(MOTOR_TRAS, OUTPUT);
+  pinMode(BUZINA, OUTPUT);
 
   //inicializa o radio com os valores padrao
   cc1101.init();
@@ -61,7 +91,7 @@ void setup()
   //define o endereço remoto
   cc1101.deviceData.remoteDeviceAddress = CONTROLE;
 
-  //Configura o rádio para filtrar os dados recebidos e aceitar somente 
+  //Configura o rádio para filtrar os dados recebidos e aceitar somente
   //pacotes enviados para este endereço local
   cc1101.deviceData.addressCheck = true;
 
@@ -72,7 +102,7 @@ void setup()
   cc1101.deviceData.txPower = PA_MaxDistance;
   //canal
   cc1101.deviceData.channel = 5 ;
-  //configurações de sincronização 
+  //configurações de sincronização
   cc1101.deviceData.syncWord[0] = 19;
   cc1101.deviceData.syncWord[1] = 9;
 
@@ -82,11 +112,18 @@ void setup()
   // start reading the GDO0 pin through the ISR function
   attachIntr();
 
+  stepper.setRpm(10);
+  stepper.setTotalSteps(4096);
+  calibraLeme();
+
+  Timer1.initialize(1000);
+  Timer1.attachInterrupt(rodaMotor); // blinkLED to run every 0.15 seconds
 
 }
 
 void loop() {
 
+  //-------INICIO DA COMUNICAÇÃO SEM FIO------------
   // Verifica se o radio recebeu um pacote
   if (!pacoteRecebido()) {
     // Se não recebeu um pacote, verifica se está na hora de enviar os dados
@@ -95,13 +132,81 @@ void loop() {
       msUltimoEnvio = millis();
     }
   } else {
-    mostraDados();
+    //mostraDados();
   }
-  delay(15);
-  
+  //-------FIM DA COMUNICAÇÃO SEM FIO------------
   //DADOS DE TESTE
-  barco.bateria = !barco.bateria;
+  barco.bateria = digitalRead(BATERIA);
 }
+
+
+void calibraLeme() {
+  while (digitalRead(SENSOR_LEME) == false) {
+    stepper.step(false);
+  }
+  stepper.moveDegrees(true, 90);
+  lemePos = 90;
+}
+
+void rodaMotor() {
+
+  if (controle.leme < 205) {
+
+    if (lemePos < 15) {
+      stepper.moveDegrees(true, 1);
+      lemePos++;
+    }
+    if (lemePos > 15) {
+      stepper.moveDegrees(false, 1);
+      lemePos--;
+    }
+  }
+  if (controle.leme > 205 && controle.leme < 410) {
+    if (lemePos < 65) {
+      stepper.moveDegrees(true, 1);
+      lemePos++;
+    }
+    if (lemePos > 65) {
+      stepper.moveDegrees(false, 1);
+      lemePos--;
+    }
+  }
+
+  if (controle.leme > 410 && controle.leme < 615) {
+    if (lemePos < 90) {
+      stepper.moveDegrees(true, 1);
+      lemePos++;
+    }
+    if (lemePos > 90) {
+      stepper.moveDegrees(false, 1);
+      lemePos--;
+    }
+  }
+  if (controle.leme > 615 && controle.leme < 820) {
+    if (lemePos < 130) {
+      stepper.moveDegrees(true, 1);
+      lemePos++;
+    }
+    if (lemePos > 130) {
+      stepper.moveDegrees(false, 1);
+      lemePos--;
+    }
+
+  }
+  if (controle.leme > 820) {
+
+    if (lemePos < 165) {
+      stepper.moveDegrees(true, 1);
+      lemePos++;
+    }
+    if (lemePos > 165) {
+      stepper.moveDegrees(false, 1);
+      lemePos--;
+    }
+
+  }
+}
+
 
 void mostraDados() {
 
@@ -123,7 +228,7 @@ void mostraDados() {
 
   Serial.print("controle.canhao: ");
   Serial.println(controle.canhao);
-  Serial.println("------------------------------------");
+  Serial.println("------------------------------------\nBARCO\n");
 }
 // ----------------------
 // Send & Receive
@@ -176,9 +281,9 @@ bool pacoteRecebido() {
       //pega os dados do pacote recebido e altera os valores da estrutura
       controle.leme = word(pkt.data[3], pkt.data[2]);
       controle.motor = word(pkt.data[5], pkt.data[4]);
-      controle.servo = word(pkt.data[7], pkt.data[6]);
-      controle.buzina = pkt.data[8];
-      controle.canhao = pkt.data[9];
+      controle.servo = pkt.data[6];
+      controle.buzina = pkt.data[7];
+      controle.canhao = pkt.data[8];
     } // crc & len>0
   } // cc1101.readData
 
