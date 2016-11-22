@@ -2,18 +2,23 @@
    https://github.com/tiagopossato/CC1101Radio
 
 */
+
 #include "SPI.h"
 #include "CC1101Radio.h"
 #include <CheapStepper.h>
-#include <TimerOne.h>
+//#include <TimerOne.h>
+#include <MsTimer2.h>
+
+#include <Servo.h>
+
 
 #define CONTROLE 1
 #define BARCO 2
 
-#define MOTOR_PWM 3
+#define MOTOR_PWM 6
 #define CANHAO 4
 #define SERVO 5
-#define MOTOR_FRENTE 6
+#define MOTOR_FRENTE 3
 #define MOTOR_TRAS 7
 #define BUZINA 8
 
@@ -26,6 +31,17 @@
 #define SENSOR_LEME 19
 
 CheapStepper stepper( MP1, MP2, MP3, MP4);
+Servo myservo;
+int portSpeak(BUZINA);
+byte melodia[] = {240, 239, 238, 237, 236, 235, 234, 233, 232, 231, 230, 229, 228, 227, 226, 225, 224, 223, 222, 221, 220, 219, 218, 217, 216, 215, 214, 213, 212, 211, 210, 209, 208, 207, 206, 205, 204, 203, 202, 201, 200, 199, 198, 197, 196, 195, 194, 193, 192, 191, 190, 189, 188, 187, 186, 185, 184, 183, 182, 181, 180, 179, 178, 177, 176, 175, 174, 173, 172, 171, 170, 169, 168, 167, 166, 165, 164, 163, 162, 161, 160, 159, 158, 157, 156, 155, 154, 153, 152, 151, 150};
+
+//duraçao de cada nota
+uint16_t duracaodasnotas[] = {30, 30, 30, 30, 30, 30, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 5000};
+
+byte melodiaCanhao[] = {40, 40, 40, 40, 50, 40, 40, 40, 40, 40, 50, 40, 40, 40, 40, 50, 40, 40, 40, 40, 40, 40};
+
+//duraçao de cada nota
+byte duracaodasnotasCanhao[] = {25, 25, 25, 25, 25, 25, 25, 25, 25, 20, 20, 20, 25, 25, 25, 25, 25, 25, 25, 20};
 
 //estrutura com os dados recebidos
 struct {
@@ -77,7 +93,6 @@ void setup()
 
   pinMode(MOTOR_PWM, OUTPUT);
   pinMode(CANHAO, OUTPUT);
-  pinMode(SERVO, OUTPUT);
   pinMode(MOTOR_FRENTE, OUTPUT);
   pinMode(MOTOR_TRAS, OUTPUT);
   pinMode(BUZINA, OUTPUT);
@@ -116,8 +131,14 @@ void setup()
   stepper.setTotalSteps(4096);
   calibraLeme();
 
-  Timer1.initialize(1000);
-  Timer1.attachInterrupt(rodaMotor); // blinkLED to run every 0.15 seconds
+  MsTimer2::set(1, rodaMotor); // 500ms period
+  MsTimer2::start();
+  //
+  //  Timer1.initialize(1000);
+  //  Timer1.attachInterrupt(rodaMotor); // blinkLED to run every 0.15 seconds
+
+
+  myservo.attach(SERVO);
 
 }
 
@@ -132,11 +153,27 @@ void loop() {
       msUltimoEnvio = millis();
     }
   } else {
-    //mostraDados();
+    mostraDados();
   }
   //-------FIM DA COMUNICAÇÃO SEM FIO------------
-  //DADOS DE TESTE
+
   barco.bateria = digitalRead(BATERIA);
+
+
+  myservo.write(controle.servo);
+
+  if (controle.buzina == 1) {
+    buzina();
+  }
+  if (controle.canhao == 1) {
+    digitalWrite(CANHAO, 1);
+    canhao();
+  }
+  if (controle.canhao == 0) {
+    digitalWrite(CANHAO, 0);
+  }
+  ponteh();
+
 }
 
 
@@ -292,3 +329,59 @@ bool pacoteRecebido() {
 
   return true;
 }
+
+void buzina() {
+  uint16_t pausadepoisdasnotas[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5000};
+
+  for (int nota = 0; nota < 91; nota++) {
+    uint16_t duracaodanota = duracaodasnotas[nota];
+    tone(portSpeak, melodia[nota], duracaodanota);
+    //pausa depois das notas
+    delay(pausadepoisdasnotas[nota]);
+  }
+
+  noTone(portSpeak);
+
+
+}
+
+void canhao() {
+
+
+  byte pausadepoisdasnotas[] = {60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60};
+
+  for (int nota = 0; nota < 20; nota++) {
+    byte duracaodanota = duracaodasnotasCanhao[nota];
+    tone(portSpeak, melodiaCanhao[nota], duracaodanota);
+    //pausa depois das notas
+    delay(pausadepoisdasnotas[nota]);
+  }
+
+  noTone(portSpeak);
+
+}
+
+void ponteh() {
+
+  if (controle.motor < 500) {
+    digitalWrite(MOTOR_TRAS, 1);
+    digitalWrite(MOTOR_FRENTE, 0);
+  analogWrite(MOTOR_PWM, map(controle.motor, 0, 500, 255, 0));
+   //analogWrite(MOTOR_PWM, 128);
+  }
+  if (controle.motor > 600) {
+    digitalWrite(MOTOR_FRENTE, 1);
+    digitalWrite(MOTOR_TRAS, 0);
+   analogWrite(MOTOR_PWM, map(controle.motor, 600, 1065, 0, 255));
+   //analogWrite(MOTOR_PWM,128);
+  }
+ else if (controle.motor > 501 && controle.motor < 599) {
+    digitalWrite(MOTOR_TRAS, 0);
+    digitalWrite(MOTOR_FRENTE, 0);
+    analogWrite(MOTOR_PWM, 0);
+  }
+
+}
+
+
+
