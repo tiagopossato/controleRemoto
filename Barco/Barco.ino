@@ -97,6 +97,8 @@ void setup()
   pinMode(MOTOR_TRAS, OUTPUT);
   pinMode(BUZINA, OUTPUT);
 
+  pinMode(SENSOR_LEME, INPUT_PULLUP);
+
   //inicializa o radio com os valores padrao
   cc1101.init();
 
@@ -153,7 +155,7 @@ void loop() {
       msUltimoEnvio = millis();
     }
   } else {
-    mostraDados();
+    //mostraDados();
   }
   //-------FIM DA COMUNICAÇÃO SEM FIO------------
 
@@ -178,7 +180,7 @@ void loop() {
 
 
 void calibraLeme() {
-  while (digitalRead(SENSOR_LEME) == false) {
+  while (digitalRead(SENSOR_LEME) == true) {
     stepper.step(false);
   }
   stepper.moveDegrees(true, 90);
@@ -295,6 +297,7 @@ bool pacoteRecebido() {
   if (!cc1101.packetAvailable) {
     return false;
   }
+    mostraDados();
 
   // O modulo recebeu dados
 
@@ -366,22 +369,19 @@ void ponteh() {
   if (controle.motor < 500) {
     digitalWrite(MOTOR_TRAS, 1);
     digitalWrite(MOTOR_FRENTE, 0);
-  analogWrite(MOTOR_PWM, map(controle.motor, 0, 500, 255, 0));
-   //analogWrite(MOTOR_PWM, 128);
+    analogWrite(MOTOR_PWM, map(controle.motor, 0, 500, 255, 0));
+    //analogWrite(MOTOR_PWM, 128);
   }
   if (controle.motor > 600) {
     digitalWrite(MOTOR_FRENTE, 1);
     digitalWrite(MOTOR_TRAS, 0);
-   analogWrite(MOTOR_PWM, map(controle.motor, 600, 1065, 0, 255));
-   //analogWrite(MOTOR_PWM,128);
+    analogWrite(MOTOR_PWM, map(controle.motor, 600, 1065, 0, 255));
+    //analogWrite(MOTOR_PWM,128);
   }
- else if (controle.motor > 501 && controle.motor < 599) {
+  else if (controle.motor > 501 && controle.motor < 599) {
     digitalWrite(MOTOR_TRAS, 0);
     digitalWrite(MOTOR_FRENTE, 0);
     analogWrite(MOTOR_PWM, 0);
   }
 
 }
-
-
-

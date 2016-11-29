@@ -31,6 +31,11 @@ CC1101Radio cc1101;
 uint32_t msUltimoEnvio = 0;
 #define msEntreEnvios 200
 
+unsigned long previousMillis = 0;        // will store last time LED was updated
+// constants won't change :
+const long interval = 1000;           // interval at which to blink (milliseconds)
+
+
 /**Função para converter os valores de tensão em umidade*/
 float converte(float x, float in_min, float in_max, float out_min,
                float out_max) {
@@ -64,11 +69,12 @@ void setup()
   controle.buzina = false;
   controle.canhao = false;
 
-  Serial.begin(57600);
+  Serial.begin(9600);
 
   pinMode(3, INPUT);
   pinMode(4, INPUT);
   pinMode(5, INPUT);
+  pinMode(6, INPUT);
   pinMode(7, OUTPUT);
   //inicializa o radio com os valores padrao
   cc1101.init();
@@ -113,11 +119,13 @@ void loop() {
       msUltimoEnvio = millis();
     }
   } else {
-    mostraDados();
-    digitalWrite(7, barco.bateria);
+    if (barco.bateria) {
+      digitalWrite(7, HIGH);
+    }
+    else {
+      digitalWrite(7, LOW);
+    }
   }
-  delay(15);
-
   //LE DADOS
 
   for ( i = 0 ; i < AMOSTRAS; i++) {
@@ -145,14 +153,20 @@ void loop() {
     delay(30); // waits 15ms for the servo to reach the position
   }
 
+
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+    // save the last time you blinked the LED
+    previousMillis = currentMillis;
+    mostraDados();
+  }
+
 }
 
 void mostraDados() {
+  Serial.println("------------------------------------\nCONTROLE\n");
 
-  Serial.print("barco.bateria: ");
-  Serial.println(barco.bateria);
-
-  Serial.println("------------------------------------");
   Serial.print("controle.leme: ");
   Serial.println(controle.leme);
 
@@ -167,7 +181,7 @@ void mostraDados() {
 
   Serial.print("controle.canhao: ");
   Serial.println(controle.canhao);
-  Serial.println("------------------------------------\nCONTROLE\n");
+
 }
 // ----------------------
 // Send & Receive
@@ -204,6 +218,7 @@ bool pacoteRecebido() {
     return false;
   }
 
+
   // O modulo recebeu dados
 
   //desliga a interrupção externa
@@ -225,6 +240,9 @@ bool pacoteRecebido() {
 
       //pega os dados do pacote recebido e altera os valores da estrutura
       barco.bateria = pkt.data[2];
+      Serial.println("------------------------------------\n");
+      Serial.print("barco.bateria: ");
+      Serial.println(barco.bateria);
     } // crc & len>0
   } // cc1101.readData
 
