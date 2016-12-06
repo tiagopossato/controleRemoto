@@ -6,7 +6,6 @@
 #include "SPI.h"
 #include "CC1101Radio.h"
 #include <CheapStepper.h>
-//#include <TimerOne.h>
 #include <MsTimer2.h>
 
 #include <Servo.h>
@@ -129,18 +128,14 @@ void setup()
   // start reading the GDO0 pin through the ISR function
   attachIntr();
 
-  stepper.setRpm(10);
+  stepper.setRpm(9);
   stepper.setTotalSteps(4096);
   calibraLeme();
 
   MsTimer2::set(1, rodaMotor); // 500ms period
   MsTimer2::start();
-  //
-  //  Timer1.initialize(1000);
-  //  Timer1.attachInterrupt(rodaMotor); // blinkLED to run every 0.15 seconds
 
-
-  myservo.attach(SERVO);
+  //myservo.attach(SERVO);
 
 }
 
@@ -161,19 +156,18 @@ void loop() {
 
   barco.bateria = digitalRead(BATERIA);
 
-
-  myservo.write(controle.servo);
+ // myservo.write(controle.servo);
 
   if (controle.buzina == 1) {
     buzina();
   }
-  if (controle.canhao == 1) {
-    digitalWrite(CANHAO, 1);
-    canhao();
-  }
-  if (controle.canhao == 0) {
-    digitalWrite(CANHAO, 0);
-  }
+//  if (controle.canhao == 1) {
+//    digitalWrite(CANHAO, 1);
+//    canhao();
+//  }
+//  if (controle.canhao == 0) {
+//    digitalWrite(CANHAO, 0);
+//  }
   ponteh();
 
 }
